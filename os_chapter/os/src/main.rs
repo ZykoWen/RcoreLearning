@@ -2,7 +2,7 @@
 #![no_std]
 #![no_main]
 // asm 和 panic_info_message 特性自 Rust 的某些版本之后已经稳定，不再需要使用 #[feature(...)] 属性来启用。
-
+mod batch;
 use core::arch::global_asm;
 
 // use sbi::shutdown;

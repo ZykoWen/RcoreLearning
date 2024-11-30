@@ -1,3 +1,5 @@
+//! 生成 link_app.S 将应用作为一个数据段链接到内核
+
 //将一系列的应用程序（app）数据插入到一个汇编文件中。
 use std::fs::{read_dir, File};
 use std::io::{Result, Write};

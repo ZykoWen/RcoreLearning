@@ -7,8 +7,6 @@ use core::arch::global_asm;
 
 #[macro_use]
 mod console;
-mod batch;
-// pub mod batch;
 mod lang_items;
 mod sbi;
 mod sync;
@@ -16,6 +14,7 @@ mod syscall;
 mod trap;
 mod loader;
 mod config;
+pub mod task;
 // pub mod syscall;
 // pub mod trap;
 
@@ -27,11 +26,11 @@ global_asm!(include_str!("link_app.S"));
 #[no_mangle] //避免编译器对它的名字进行混淆
 pub fn rust_main() -> !{
     clear_bss();//内核初始化中，需要先完成对 .bss 段的清零
-    println!("[lernel]hello,zyko");
+    println!("[kernel]hello,zyko");
     trap::init();
-    batch::init();
     loader::load_apps();
-    batch::run_next_app();
+    task::run_first_task();
+    panic!("Unreachable in rust main!");
 }
 
 ///完成对 .bss 段的清零

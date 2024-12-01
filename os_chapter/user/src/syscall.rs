@@ -1,5 +1,6 @@
 //！实现之间的应用程序和批处理系统系统调用
 use core::arch::asm;
+
 ///定义通用系统调用函数
 fn syscall(id:usize,args:[usize;3])->isize{
   let mut ret: isize;//保存系统调用返回值
@@ -16,8 +17,12 @@ fn syscall(id:usize,args:[usize;3])->isize{
   }
   ret
 }
-const SYSCALL_WRITE: usize = 64;//系统调用号，用于标识写操作的系统调用
+
+//系统调用号，用于标识写操作的系统调用
+const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_YIELD: usize = 124;
+
 /// 功能：将内存中缓冲区中的数据写入文件。
 /// 参数：`fd` 表示待写入文件的文件描述符；
 ///      `buf` 表示内存中缓冲区的起始地址；
@@ -27,6 +32,7 @@ const SYSCALL_EXIT: usize = 93;
 pub fn sys_write(fd: usize,buffer: &[u8]) -> isize{
   syscall(SYSCALL_WRITE,[fd, buffer.as_ptr() as usize, buffer.len()])
 }
+
 /// 功能：退出应用程序并将返回值告知批处理系统。
 /// 参数：`exit_code` 表示应用程序的返回值。
 /// 返回值：该系统调用不应该返回。
@@ -35,3 +41,9 @@ pub fn sys_exit(xstate: i32) -> isize {
   syscall(SYSCALL_EXIT,[xstate as usize,0,0])
 }
 
+/// 功能：应用主动交出 CPU 所有权并切换到其他应用。
+/// 返回值：总是返回 0。
+/// syscall ID：124
+pub fn sys_yield() -> isize {
+  syscall(SYSCALL_YIELD, [0,0,0])
+}

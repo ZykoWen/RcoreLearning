@@ -9,7 +9,7 @@ linker = 'src/linker.ld'
 
 app_id = 0
 #获取目录 src/bin 中的所有文件
-apps = os.listdir('scr/bin')
+apps = os.listdir('src/bin')
 #对文件名进行字典序排序，确保每次运行脚本时，应用程序的构建顺序一致
 apps.sort()
 

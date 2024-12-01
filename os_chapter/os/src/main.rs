@@ -29,7 +29,7 @@ pub fn rust_main() -> !{
     clear_bss();//内核初始化中，需要先完成对 .bss 段的清零
     println!("[lernel]hello,zyko");
     trap::init();
-    // batch::init();
+    batch::init();
     loader::load_apps();
     batch::run_next_app();
 }

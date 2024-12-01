@@ -88,5 +88,6 @@ pub fn get_num_app() -> usize {
 
 ///通过应用程序入口地址和用户栈指针来获取app，并在kernel stack上保存TrapContext
 pub fn init_app_cx(app_id: usize) -> usize {
+  println!("[kernel] spec:{:X}", get_base_i(app_id));
   KERNEL_STACK[app_id].push_context(TrapContext::app_init_context(get_base_i(app_id), USER_STACK[app_id].get_sp()))
 }

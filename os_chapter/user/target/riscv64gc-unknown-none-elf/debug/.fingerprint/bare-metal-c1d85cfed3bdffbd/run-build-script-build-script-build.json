@@ -1,1 +1,0 @@
-{"rustc":9094719623363534962,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[4123785468958111588,"build_script_build",false,3674890594880125245]],"local":[{"Precalculated":"0.2.5"}],"rustflags":["-Clink-args=-Tsrc/linker.ld","-Cforce-frame-pointers=yes"],"metadata":0,"config":0,"compile_kind":0}

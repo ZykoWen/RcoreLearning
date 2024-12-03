@@ -1,1 +1,0 @@
-/root/RcoreLearning/os_chapter/user/target/riscv64gc-unknown-none-elf/release/01write_b: /root/RcoreLearning/os_chapter/user/src/bin/01write_b.rs /root/RcoreLearning/os_chapter/user/src/console.rs /root/RcoreLearning/os_chapter/user/src/lang_items.rs /root/RcoreLearning/os_chapter/user/src/lib.rs /root/RcoreLearning/os_chapter/user/src/syscall.rs

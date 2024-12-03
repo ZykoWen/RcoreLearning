@@ -32,7 +32,16 @@ fn clear_bss() {
 }
 use syscall::*;
 
-pub fn write(fd: usize, buf: &[u8]) -> isize{sys_write(fd,buf)}
-pub fn exit(exit_code: i32) -> isize{sys_exit(exit_code)}
+pub fn write(fd: usize, buf: &[u8]) -> isize{
+  sys_write(fd,buf)
+}
+pub fn exit(exit_code: i32) -> isize{
+  sys_exit(exit_code)
+}
 //因为yield是rust的关键字--所以接口名不能为yield
-pub fn yield_() -> isize {sys_yield()}
+pub fn yield_() -> isize {
+  sys_yield()
+}
+pub fn get_time() -> isize {
+  sys_get_time()
+}

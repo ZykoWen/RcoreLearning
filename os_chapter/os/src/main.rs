@@ -5,6 +5,9 @@
 
 use core::arch::global_asm;
 
+#[path = "boards/qemu.rs"] //自定义模块文件的路径
+mod board;
+
 #[macro_use]
 mod console;
 mod lang_items;
@@ -15,6 +18,7 @@ mod trap;
 mod loader;
 mod config;
 pub mod task;
+mod timer;
 // pub mod syscall;
 // pub mod trap;
 
@@ -29,6 +33,8 @@ pub fn rust_main() -> !{
     println!("[kernel]hello,zyko");
     trap::init();
     loader::load_apps();
+    trap::enable_timer_interrupt();//避免S特权级时钟中断被屏蔽
+    timer::set_next_trigger();//设置下一个中断
     task::run_first_task();
     panic!("Unreachable in rust main!");
 }

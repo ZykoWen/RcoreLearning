@@ -1,12 +1,19 @@
-#![deny(warnings)]
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
 // asm 和 panic_info_message 特性自 Rust 的某些版本之后已经稳定，不再需要使用 #[feature(...)] 属性来启用。
+
+extern crate alloc; //引入 alloc 库的依赖
+#[macro_use]
+extern crate bitflags;
 
 use core::arch::global_asm;
 
 #[path = "boards/qemu.rs"] //自定义模块文件的路径
 mod board;
+
+#[path = "mm/heap_allocator.rs"] //自定义模块文件的路径
+mod mm;
 
 #[macro_use]
 mod console;
@@ -19,6 +26,7 @@ mod loader;
 mod config;
 pub mod task;
 mod timer;
+
 // pub mod syscall;
 // pub mod trap;
 
@@ -31,6 +39,11 @@ global_asm!(include_str!("link_app.S"));
 pub fn rust_main() -> !{
     clear_bss();//内核初始化中，需要先完成对 .bss 段的清零
     println!("[kernel]hello,zyko");
+    // mm::init_heap();
+    // println!("初始化堆完毕");
+    // mm::heap_test();
+    // println!("堆测试完毕");
+
     trap::init();
     loader::load_apps();
     trap::enable_timer_interrupt();//避免S特权级时钟中断被屏蔽

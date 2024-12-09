@@ -1,5 +1,4 @@
 //!内存空间的实现
-
 use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
@@ -27,7 +26,7 @@ extern "C" {
 }
 ///逻辑段数据结构的实现：描述一段连续地址的虚拟内存
 pub struct MapArea {
-  //描述一段虚拟页号的连续空间--该逻辑段在地址区间中的位置和长度
+  //描述一段虚拟页号的连续空间
   vpn_range: VPNRange,
   //该逻辑段中的虚拟页号和物理页号的对应关系
   data_frames: BTreeMap<VirtPageNum, FrameTracker>,

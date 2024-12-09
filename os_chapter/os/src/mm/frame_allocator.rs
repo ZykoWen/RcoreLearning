@@ -108,7 +108,7 @@ impl Drop for FrameTracker {
 }
 
 ///分配物理页帧的接口
-pub fn frame_alloc -> Option<FrameTracker> {
+pub fn frame_alloc() -> Option<FrameTracker> {
   FRAME_ALLOCATOR
     .exclusive_access()
     .alloc()

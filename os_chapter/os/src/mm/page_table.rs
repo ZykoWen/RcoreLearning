@@ -131,7 +131,7 @@ impl PageTable {
     }
   }
 
-  ///将页表项拷贝一份并返回
+  ///将给定虚拟地址对应的页表项拷贝一份并返回
   pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
     self.find_pte(vpn)
         .map(|pte| {pte.clone()})

@@ -126,11 +126,13 @@ impl TaskManager {
     }
     panic!("unreachable in run_first_task!");
   }
+  ///获取当前任务的token
   fn get_current_token(&self) -> usize {
     let inner = self.inner.exclusive_access();
     let current = inner.current_task;
     inner.tasks[current].get_user_token()
   }
+  ///获取当前任务的Trapcontext
   fn get_current_trap_cx(&self) -> &'static mut TrapContext {
     let inner = self.inner.exclusive_access();
     let current = inner.current_task;

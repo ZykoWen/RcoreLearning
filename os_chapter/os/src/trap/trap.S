@@ -51,7 +51,7 @@ __alltraps:
 
 
 __restore:
-    #a0: 用户地址空间的TrapContext的位置（在所有应用的地址空间都相同）
+    #a0:用户地址空间的TrapContext的位置（在所有应用的地址空间都相同）
     #a1：用户地址空间的token
     #切换到用户地址空间
     csrw satp, a1

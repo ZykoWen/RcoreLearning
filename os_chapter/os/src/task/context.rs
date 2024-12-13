@@ -3,6 +3,7 @@
 use crate::trap::trap_return;
 #[derive(Copy,Clone)]
 #[repr(C)]
+///任务上下文
 pub struct TaskContext {
   ///switch返回后的执行位置e.g. __restore
   ra: usize, 
@@ -23,16 +24,7 @@ impl TaskContext {
     }
   }
 
-  ///实现switch过后，进入__restore
-  pub fn goto_restore(kstack_ptr: usize) -> Self {
-    extern "C" { fn __restore(); }
-    Self {
-      ra: __restore as usize,
-      sp: kstack_ptr,
-      s: [0; 12],
-    }
-  }
-  ///不太懂这个函数？？
+  ///根据应用的在内核空间的内核栈栈顶指针返回任务上下文
   pub fn goto_trap_return(kstack_ptr: usize) -> Self {
     Self { 
       ra: trap_return as usize,

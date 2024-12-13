@@ -18,6 +18,6 @@ pub fn init() {
   heap_allocator::init_heap();
   //初始化物理页帧管理器
   frame_allocator::init_frame_allocator();
-  //创建内核地址空间--是cpu开启分页模式
+  //创建内核地址空间--使cpu开启分页模式
   KERNEL_SPACE.exclusive_access().activate();
 }

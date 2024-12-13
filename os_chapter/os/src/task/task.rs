@@ -5,29 +5,41 @@ use crate::{config::{kernel_stack_position, TRAP_CONTEXT}, mm::{MapPermission, M
 
 ///代表任务状态的枚举类型
 #[derive(Copy,Clone,PartialEq)]
+///任务状态
 pub enum TaskStatus {
-  Ready, //准备运行
-  Running, //正在运行
-  Exited, //已经退出
+  ///准备运行
+  Ready, 
+  ///正在运行
+  Running,
+  ///已经退出 
+  Exited, 
 }
 
 ///任务控制块TCB：内核保存一个应用的更多信息的数据结构
 pub struct TaskControlBlock {
-  pub task_status: TaskStatus, //任务当前状态
-  pub task_cx: TaskContext, //任务上下文
-  pub memory_set: MemorySet, //应用的地址空间
-  pub trap_cx_ppn: PhysPageNum, //Trap 上下文被实际存放在物理页帧的物理页号 
-  pub base_size: usize, //应用数据大小--应用地址空间中从开始到用户栈结束一共包含多少字节
+  ///任务当前状态
+  pub task_status: TaskStatus, 
+  ///任务上下文
+  pub task_cx: TaskContext, 
+  ///应用的地址空间
+  pub memory_set: MemorySet,  
+  ///Trap 上下文被实际存放在物理页帧的物理页号 
+  pub trap_cx_ppn: PhysPageNum,
+  ///应用数据大小--应用地址空间中从开始到用户栈结束一共包含多少字节 
+  pub base_size: usize, 
 }
 
 impl TaskControlBlock {
+  ///获取trap上下文的可变引用
   pub fn get_trap_cx(&self) -> &'static mut TrapContext {
     //用get_mut获取物理页中的内容
     self.trap_cx_ppn.get_mut()
   }
+  ///获取用户地址空间的token
   pub fn get_user_token(&self) -> usize {
     self.memory_set.token()
   }
+  ///新建一个任务控制块TCB
   pub fn new(elf_data: &[u8], app_id: usize) -> Self {
     let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
     //找到应用地址空间的Trap上下文被放置的物理页号

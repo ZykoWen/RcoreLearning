@@ -170,7 +170,7 @@ impl MemorySet {
   ///生成内核的地址空间
   pub fn new_kernel() -> Self{
     let mut memory_set = Self::new_bare();
-    //跳板映射？
+    //跳板映射
     memory_set.map_trampoline();
     //映射内核段
     println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
@@ -284,6 +284,7 @@ impl MemorySet {
     //返回应用地址空间、用户栈虚拟地址、应用入口地址
     (memory_set, user_stack_top, elf.header.pt2.entry_point() as usize)
   }
+  ///跳板映射函数
   fn map_trampoline(&mut self) {
     self.page_table.map(
       VirtAddr::from(TRAMPOLINE).into(),
@@ -316,7 +317,7 @@ lazy_static! {
 
 ///检查内核地址空间的多级页表是否被正确设置
 pub fn remap_test() {
-  let mut kernel_space = KERNEL_SPACE.exclusive_access();
+  let kernel_space = KERNEL_SPACE.exclusive_access();
   let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
   let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
   let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();

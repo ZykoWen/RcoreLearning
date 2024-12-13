@@ -1,7 +1,7 @@
 #![no_std]
 #![feature(linkage)]
 
-#[macro_use]  //别忘了引入模块
+#[macro_use]  //别忘了这个标志
 pub mod console;
 mod lang_items;
 mod syscall;

@@ -18,7 +18,8 @@ pub fn init(){
     fn __alltraps();
   }
   unsafe {
-    stvec::write(__alltraps as usize, TrapMode::Direct);//将Trap处理代码的入口地址写进stvec
+    //将Trap处理代码的入口地址写进stvec
+    stvec::write(__alltraps as usize, TrapMode::Direct);
   }
 }
 
@@ -64,6 +65,7 @@ pub fn enable_timer_interrupt() {
   unsafe { sie::set_stimer(); }
 }
 
+///设置从内核特权级Trap的入口点
 fn set_kernel_trap_entry() {
   unsafe {
     stvec::write(trap_from_kernel as usize, TrapMode::Direct)
@@ -75,6 +77,7 @@ pub fn trap_from_kernel() -> !{
   panic!("a trap from kernel!");
 }
 
+///设置从用户特权级Trap的入口点
 fn set_user_trap_entry() {
   unsafe {
     stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
@@ -82,6 +85,7 @@ fn set_user_trap_entry() {
 }
 
 #[no_mangle] 
+///处理完trap之后的返回函数
 pub fn trap_return() -> ! {
   //让应用 Trap 到 S 的时候可以跳转到 __alltraps 
   set_user_trap_entry();

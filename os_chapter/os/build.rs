@@ -1,6 +1,5 @@
 //! 生成 link_app.S 将应用作为一个数据段链接到内核
 
-//将一系列的应用程序（app）数据插入到一个汇编文件中。
 use std::fs::{read_dir, File};
 use std::io::{Result, Write};
 
@@ -10,9 +9,11 @@ fn main() {
     println!("cargo:rerun-if-changed={}", TARGET_PATH);
     insert_app_data().unwrap();
 }
-//静态字符串，指向目标应用程序的路径
+
+///静态字符串，指向目标应用程序的路径
 static TARGET_PATH: &str = "../user/target/riscv64gc-unknown-none-elf/release/";
 
+///将一系列的应用程序的elf数据插入到一个汇编文件中
 fn insert_app_data() -> Result<()> {
     //尝试创建一个名为 link_app.S 的新文件，用于写入汇编代码。
     let mut f = File::create("src/link_app.S").unwrap();
@@ -39,12 +40,12 @@ _num_app:
     .quad {}"#,
         apps.len()
     )?;
-    //循环遍历 apps 向量，为每个应用程序生成汇编代码，定义每个应用程序的起始和结束标签。
+    //循环遍历 apps 向量，定义每个应用程序的起始和结束标签。
     for i in 0..apps.len() {
         writeln!(f, r#"    .quad app_{}_start"#, i)?;
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
-    //再次循环遍历 apps 向量，这次是为了将每个应用程序的二进制文件嵌入到汇编文件中。
+    //再次循环遍历 apps 向量，这次是为了将每个应用程序的elf文件嵌入到汇编文件中。
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
         writeln!(

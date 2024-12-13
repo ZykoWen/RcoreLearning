@@ -9,6 +9,12 @@ pub struct TrapContext {
   pub sstatus: Sstatus, 
   ///CSR spec
   pub sepc: usize,
+  //内核地址空间的 token（内核页表的起始物理地址）
+  pub kernel_satp: usize,
+  //当前应用在内核地址空间中的内核栈栈顶的虚拟地址
+  pub kernel_sp: usize,
+  // 内核中 trap handler 入口点的虚拟地址
+  pub trap_handler: usize,
 }
 impl TrapContext {
   ///使栈指针寄存器指向x2寄存器
@@ -16,15 +22,18 @@ impl TrapContext {
     self.x[2] = sp;
   }
   ///初始化app context
-  pub fn app_init_context(entry: usize, sp: usize) -> Self{
+  pub fn app_init_context(entry: usize, sp: usize, kernel_satp: usize, kernel_sp: usize, trap_handler: usize) -> Self {
     let mut sstatus = sstatus::read();
-    sstatus.set_spp(SPP::User);//将 sstatus 寄存器的 SPP 字段设置为 User
-    let mut cx = Self{
-      x: [0; 32],
+    sstatus.set_spp(SPP::User);
+    let mut cx = Self {
+      x: [0;32],
       sstatus,
       sepc: entry,
+      kernel_satp,
+      kernel_sp,
+      trap_handler,
     };
-    cx.set_sp(sp); //应用程序的栈指针
+    cx.set_sp(sp);
     cx
   }
 }

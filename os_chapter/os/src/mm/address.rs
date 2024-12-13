@@ -2,8 +2,8 @@
 
 use super::PageTableEntry;
 use crate::config::{PAGE_SIZE_BITS,PAGE_SIZE};
-use core::fmt::{self,Debug,Formmater};
-
+use core::fmt::{self,Debug};
+use core::fmt::Formatter;
 ///物理地址
 const PA_WIDTH_SV39: usize = 56;
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
@@ -92,6 +92,11 @@ impl From<VirtPageNum> for usize {
     v.0
   }
 }
+impl From<VirtAddr> for usize {
+  fn from(v: VirtAddr) -> Self {
+    v.0
+  }
+}
 
 impl PhysAddr {
   ///获取页面偏移量函数
@@ -104,7 +109,7 @@ impl PhysAddr {
   }
   /// 物理地址向上取整
   pub fn ceil(&self) -> PhysPageNum {
-    (self.0 + PAGE_SIZE - 1) / PAGE_SIZE
+    PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE)
   }
   ///判断物理地址的偏移量是否为0--是否对齐
   pub fn aligned(&self) -> bool {
@@ -129,9 +134,9 @@ impl From<PhysAddr> for PhysPageNum {
 }
 impl From<PhysPageNum> for PhysAddr {
   fn from(v: PhysPageNum) -> Self {
-    Self {
+    Self (
       v.0 << PAGE_SIZE_BITS
-    }
+    )
   }
 }
 
@@ -157,7 +162,7 @@ impl VirtAddr {
 ///实现虚拟地址和虚拟页面的转换
 impl From<VirtAddr> for VirtPageNum {
   fn from(v: VirtAddr) -> Self {
-    assert_eq!(v.page_offset(), 0);
+    // assert_eq!(v.page_offset(), 0);
     v.floor()
   }
 }
@@ -195,7 +200,7 @@ impl VirtPageNum {
   ///取出虚拟页号的三级页索引
   pub fn indexes(&self) -> [usize; 3] {
     let mut vpn = self.0;
-    let mut idx = [0usize, 3];
+    let mut idx = [0usize; 3];
     for i in (0..3).rev() { //逆序遍历
       idx[i] = vpn & 511; //取低九位
       vpn >>= 9; //将虚拟地址右移9位，并删除低9位

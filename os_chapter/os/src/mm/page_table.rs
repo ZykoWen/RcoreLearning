@@ -1,6 +1,9 @@
 //! 实现多级页表
-
+use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use alloc::vec::Vec;
+use alloc::vec;
 use bitflags::*;
+
 
 bitflags! {
   ///将u8封装成页表项的标志位的集合类型
@@ -48,6 +51,18 @@ impl PageTableEntry {
   pub fn is_valid(&self) -> bool {
     (self.flags() & PTEFlags::V) != PTEFlags::empty() //仅仅保留PTEFlags中的V标志位
   }
+  ///判断一个页表项是否可读
+  pub fn readable(&self) -> bool {
+    (self.flags() & PTEFlags::R) != PTEFlags::empty()
+  }
+  ///判断一个页表项是否可写
+  pub fn writable(&self) -> bool {
+    (self.flags() & PTEFlags::W) != PTEFlags::empty()
+  }
+  ///判断一个页表项是否可执行
+  pub fn executable(&self) -> bool {
+    (self.flags() & PTEFlags::X) != PTEFlags::empty()
+  }
 }
 
 ///页表数据结构
@@ -91,7 +106,7 @@ impl PageTable {
   }
 
   ///寻找页表项--不会新建节点
-  fn find_pte(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+  fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
     let idxs = vpn.indexes(); //获取虚拟页号的三级页索引
     let mut ppn = self.root_ppn;
     let mut result: Option<&mut PageTableEntry> = None;
@@ -134,6 +149,38 @@ impl PageTable {
   ///将给定虚拟地址对应的页表项拷贝一份并返回
   pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
     self.find_pte(vpn)
-        .map(|pte| {pte.clone()})
+        .map(|pte| *pte)
   }
+
+  ///构造一个无符号64位整数，使得分页模式为SV39
+  pub fn token(&self) -> usize {
+    8usize << 60 | self.root_ppn.0
+  }
+}
+
+///将应用地址空间中一个缓冲区转化为在内核空间中能够直接访问的形式的辅助函数
+pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
+  let page_table = PageTable::from_token(token);
+  let mut start = ptr as usize;
+  let end = start + len;
+  let mut v = Vec::new();
+  while start < end {
+    let start_va = VirtAddr::from(start);
+    let mut vpn = start_va.floor();
+    let ppn = page_table
+        .translate(vpn)
+        .unwrap()
+        .ppn();
+    vpn.step();
+    let mut end_va: VirtAddr = vpn.into();
+    //确保 end_va 不超过数据的实际结束位置
+    end_va = end_va.min(VirtAddr::from(end));
+    if end_va.page_offset() == 0 {
+      v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);//这里不太懂？？
+    } else {
+      v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()])
+    }
+    start = end_va.into();
+  }
+  v
 }

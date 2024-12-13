@@ -7,10 +7,12 @@ mod context;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
-use crate::loader::{get_num_app,init_app_cx};
+
+use crate::loader::{get_app_data, get_num_app};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
+use crate::trap::TrapContext;
+use alloc::vec::Vec;
 use lazy_static::*;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
@@ -28,7 +30,7 @@ pub struct TaskManager {
 ///Inner of Task Manager
 struct TaskManagerInner {
   ///任务列表
-  tasks: [TaskControlBlock; MAX_APP_NUM],
+  tasks: Vec<TaskControlBlock>,
   ///正在运行的任务的id
   current_task: usize,
 }
@@ -37,29 +39,25 @@ struct TaskManagerInner {
 lazy_static! {
   ///全局变量TASK_MANAGER
   pub static ref TASK_MANAGER: TaskManager = {
+    println!("init TASK_MANAGER");
     let num_app = get_num_app();
-    //创建一个初始化的tasks数组
-    let mut tasks = [
-      TaskControlBlock {
-        task_cx: TaskContext::zero_init(),
-        task_status: TaskStatus::UnInit //初始化任务控制块的运行状态为“尚未初始化”
-      };
-      MAX_APP_NUM
-    ];
-    //依次对每一个任务控制块进行初始化
+    println!("num_app = {}", num_app);
+    let mut tasks: Vec<TaskControlBlock> = Vec::new();
     for i in 0..num_app {
-      tasks[i].task_cx = TaskContext::goto_restore(init_app_cx(i));
-      tasks[i].task_status = TaskStatus::Ready;
+      tasks.push(TaskControlBlock::new(
+        get_app_data(i),
+        i
+      ));
     }
     //创建一个TaskManager实例，并返回
     TaskManager {
       num_app,
-      inner: unsafe {
+      inner: unsafe{
         UPSafeCell::new(TaskManagerInner{
           tasks,
           current_task: 0,
         })
-      }
+      },
     }
   };
 }
@@ -122,13 +120,24 @@ impl TaskManager {
     let mut _unused = TaskContext::zero_init();
     unsafe {
       __switch(
-        &mut _unused as *mut TaskContext,
+        &mut _unused as *mut _,
         next_task_cx_ptr,
       );
     }
     panic!("unreachable in run_first_task!");
   }
+  fn get_current_token(&self) -> usize {
+    let inner = self.inner.exclusive_access();
+    let current = inner.current_task;
+    inner.tasks[current].get_user_token()
+  }
+  fn get_current_trap_cx(&self) -> &'static mut TrapContext {
+    let inner = self.inner.exclusive_access();
+    let current = inner.current_task;
+    inner.tasks[current].get_trap_cx()
+  }
 }
+
 
 
 
@@ -159,4 +168,12 @@ fn mark_current_suspended() {
 
 fn mark_current_exited() {
   TASK_MANAGER.mark_current_exited();
+}
+
+pub fn current_user_token() -> usize {
+  TASK_MANAGER.get_current_token()
+}
+
+pub fn current_trap_cx() -> &'static mut TrapContext {
+  TASK_MANAGER.get_current_trap_cx()
 }

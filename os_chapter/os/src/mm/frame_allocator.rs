@@ -1,7 +1,9 @@
 //!实现物理页帧管理器
-
+pub use super::{PhysAddr, PhysPageNum};
+use lazy_static::*;
 use crate::sync::UPSafeCell;
-use crate::config::MEMORY_END;
+use alloc::vec::Vec;
+use crate::board::MEMORY_END;
 
 ///描述一个物理页帧管理器需要提供哪些功能
 trait FrameAllocator {
@@ -65,9 +67,8 @@ impl StackFrameAllocator {
 //定义类型别名--可以支持多种内存分配策略（换用不同的物理页帧管理器）
 type FrameAllocatorImpl = StackFrameAllocator; 
 
-///创建 StackFrameAllocator 的全局实例 FRAME_ALLOCATOR
 lazy_static! {
-  //ref关键字表明FRAME_ALLOCATOR 是对 UPSafeCell<FrameAllocatorImpl> 的一个引用
+  ///创建 StackFrameAllocator 的全局实例 FRAME_ALLOCATOR
   pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> = unsafe {
     UPSafeCell::new(FrameAllocatorImpl::new())
   };

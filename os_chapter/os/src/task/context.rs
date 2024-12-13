@@ -1,4 +1,6 @@
 //!实现任务上下文的结构体
+
+use crate::trap::trap_return;
 #[derive(Copy,Clone)]
 #[repr(C)]
 pub struct TaskContext {
@@ -8,6 +10,7 @@ pub struct TaskContext {
   sp: usize, 
   ///保存寄存器
   s: [usize; 12], 
+
 }
 
 impl TaskContext {
@@ -25,6 +28,14 @@ impl TaskContext {
     extern "C" { fn __restore(); }
     Self {
       ra: __restore as usize,
+      sp: kstack_ptr,
+      s: [0; 12],
+    }
+  }
+  ///不太懂这个函数？？
+  pub fn goto_trap_return(kstack_ptr: usize) -> Self {
+    Self { 
+      ra: trap_return as usize,
       sp: kstack_ptr,
       s: [0; 12],
     }

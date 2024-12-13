@@ -3,20 +3,21 @@ use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
-use crate::config::{MEMORY_END, MMIO, PAGE_SIZE, TRAMPOLINE};
-use crate::sync::UPIntrFreeCell;
+use crate::config::{PAGE_SIZE, TRAMPOLINE,USER_STACK_SIZE,TRAP_CONTEXT};
+use crate::board::MEMORY_END;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
 use riscv::register::satp;
+use crate::sync::UPSafeCell;
 
 extern "C" {
   fn stext();
   fn etext();
   fn srodata();
-  fn erodate();
+  fn erodata();
   fn sdata();
   fn edata();
   fn sbss_with_stack();
@@ -43,8 +44,8 @@ pub enum MapType {
   Framed, //每个虚拟页面都有一个新分配的物理页帧与之对应
 }
 
-///逻辑段的访问方式--U/R/W/X 四个标志位
 bitflags! {
+  ///逻辑段的访问方式--U/R/W/X 四个标志位
   pub struct MapPermission: u8 {
     const R = 1 << 1;
     const W = 1 << 2;
@@ -116,7 +117,7 @@ impl MapArea {
     page_table.map(vpn, ppn, pte_flags);
   }
   ///逻辑段中的单个虚拟页面进行解映射
-  pub fn unmap_one(&mut self, pagetable: &mut PageTable, vpn: VirtPageNum) {
+  pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
     match self.map_type {
       MapType::Framed => {
         self.data_frames.remove(&vpn);
@@ -142,6 +143,10 @@ impl MemorySet {
       page_table: PageTable::new(),
       areas: Vec::new(),
     }
+  }
+  ///返回页表的token
+  pub fn token(&self) -> usize {
+    self.page_table.token()
   }
   ///向 MemorySet 中添加一个虚拟地址区域（MapArea）
   fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
@@ -195,7 +200,7 @@ impl MemorySet {
     ), None);
     println!("mapping .bss section");
     memory_set.push(MapArea::new(
-      (sbss as usize).into(),
+      (sbss_with_stack as usize).into(),
       (ebss as usize).into(),
       MapType::Identical,
       MapPermission::R | MapPermission::W,
@@ -232,7 +237,7 @@ impl MemorySet {
       if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
         //设置段的虚拟地址范围
         let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
-        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize);
+        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
         //设置段的内存权限
         let mut map_perm = MapPermission::U; // 初始化权限为用户权限
         //获取段的标志，返回一个表示段权限的标志位（如是否可读、可写、可执行）
@@ -269,7 +274,8 @@ impl MemorySet {
       MapPermission::R | MapPermission::W | MapPermission::U,
     ), None);
     //将TrapContext映射到用户地址空间
-    memory_set.push(MapArea::new(
+    memory_set.push(
+      MapArea::new(
       TRAP_CONTEXT.into(),
       TRAMPOLINE.into(),
       MapType::Framed,
@@ -278,4 +284,54 @@ impl MemorySet {
     //返回应用地址空间、用户栈虚拟地址、应用入口地址
     (memory_set, user_stack_top, elf.header.pt2.entry_point() as usize)
   }
+  fn map_trampoline(&mut self) {
+    self.page_table.map(
+      VirtAddr::from(TRAMPOLINE).into(),
+      PhysAddr::from(strampoline as usize).into(),
+      PTEFlags::R | PTEFlags::X,
+    );
+  }
+  ///开启SV39分页模式
+  pub fn activate(&self) {
+    let satp = self.page_table.token();
+    unsafe {
+      //切换地址空间
+      satp::write(satp);
+      //将快表清空
+      asm!("sfence.vma");
+    }
+  }
+  ///根据虚拟地址返回页表项
+  pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+    self.page_table.translate(vpn)
+  }
+
+}
+
+lazy_static! {
+  ///内核地址空间全局实例
+  pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> = Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()
+  )});
+}
+
+///检查内核地址空间的多级页表是否被正确设置
+pub fn remap_test() {
+  let mut kernel_space = KERNEL_SPACE.exclusive_access();
+  let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+  let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+  let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+  //验证代码段和只读数据段不允许被写入，同时不允许从数据段上取指执行
+  assert_eq!(
+        kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(),
+        false,
+    );
+  assert_eq!(
+        kernel_space.page_table.translate(mid_rodata.floor()).unwrap().writable(),
+        false,
+    );
+  assert_eq!(
+        kernel_space.page_table.translate(mid_data.floor()).unwrap().executable(),
+        false,
+    );
+  println!("remap_test passed!");
 }

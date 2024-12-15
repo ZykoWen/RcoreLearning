@@ -2,6 +2,9 @@
 
 mod switch;
 mod context;
+mod pid;
+mod manager;
+mod processor;
 
 //对于task模块，Clippy将不会发出关于模块名与其父模块名相同的警告
 #[allow(clippy::module_inception)]

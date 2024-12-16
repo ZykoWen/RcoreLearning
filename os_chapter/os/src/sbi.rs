@@ -5,6 +5,13 @@ pub fn console_putchar(c: usize){
   #[allow(deprecated)]
   sbi_rt::legacy::console_putchar(c);
 }
+
+///从键盘获取字符
+pub fn console_getchar() -> usize {
+  #[allow(deprecated)]
+  sbi_rt::legacy::console_getchar()
+}
+
 ///关机功能
 pub fn shutdown(failure: bool) -> ! { //参数 failure 表示系统是否正常退出
   use sbi_rt::{system_reset,NoReason,Shutdown,SystemFailure};

@@ -66,6 +66,18 @@ impl MapArea {
       map_perm,
     }
   }
+  ///获得根据一个逻辑段获取相同的逻辑段
+  pub fn from_another(another: &MapArea) -> Self {
+    Self {
+      vpn_range: VPNRange::new(
+        another.vpn_range.get_start(),
+        another.vpn_range.get_end()
+      ),
+      data_frames: BTreeMap::new(), //没有真正被映射到物理页帧上
+      map_type: another.map_type,
+      map_perm: another.map_perm,
+    }
+  }
   ///将当前逻辑段到物理内存的映射从传入的该逻辑段所属的地址空间的多级页表中加入
   pub fn map(&mut self, page_table: &mut PageTable) {
     for vpn in self.vpn_range {
@@ -144,9 +156,39 @@ impl MemorySet {
       areas: Vec::new(),
     }
   }
+  ///根据一个应用地址空间创建一个完全一样的地址空间
+  pub fn from_exited_user(user_space: &MemorySet) -> MemorySet {
+    let mut memory_set = Self::new_bare();
+    memory_set.map_trampoline();
+    //复制数据sections/trap_context/user_stack
+    for area in user_space.areas.iter() {
+      let new_area = MapArea::from_another(area);
+      memory_set.push(new_area, None);
+      for vpn in area.vpn_range {
+        let src_ppn = user_space.translate(vpn).unwrap().ppn();
+        let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+        dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+      }
+    }
+    memory_set
+  }
   ///返回页表的token
   pub fn token(&self) -> usize {
     self.page_table.token()
+  }
+  ///根据逻辑段的起始虚拟页面删除该逻辑段
+  pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
+    if let Some((idx, area)) = self
+        .areas
+        .iter_mut()
+        .enumerate()
+        .find(|(_, area)| area.vpn_range.get_start() == start_vpn)
+        {
+          //将逻辑段的映射关系从页表中去除
+          area.unmap(&mut self.page_table);
+          //将该逻辑段从内核地址空间中删除
+          self.areas.remove(idx);
+        }
   }
   ///向 MemorySet 中添加一个虚拟地址区域（MapArea）
   fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
@@ -305,6 +347,10 @@ impl MemorySet {
   ///根据虚拟地址返回页表项
   pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
     self.page_table.translate(vpn)
+  }
+  ///将地址空间中的逻辑段列表 areas 清空
+  pub fn recycled_data_pages(&mut self) {
+    self.areas.clear();
   }
 
 }

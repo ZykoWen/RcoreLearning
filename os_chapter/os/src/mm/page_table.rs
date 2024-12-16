@@ -1,8 +1,9 @@
 //! 实现多级页表
-use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::vec::Vec;
 use alloc::vec;
 use bitflags::*;
+use alloc::string::String;
 
 
 bitflags! {
@@ -151,6 +152,15 @@ impl PageTable {
     self.find_pte(vpn)
         .map(|pte| *pte)
   }
+  ///给定虚拟地址，返回物理地址
+  pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
+    self.find_pte(va.clone().floor()).map(|pte|{
+      let aligned_pa: PhysAddr = pte.ppn().into();
+      let offset = va.page_offset();
+      let aligned_pa_usize: usize = aligned_pa.into();
+      (aligned_pa_usize + offset).into()
+    })
+  }
 
   ///构造一个无符号64位整数，使得分页模式为SV39
   pub fn token(&self) -> usize {
@@ -176,11 +186,28 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     //确保 end_va 不超过数据的实际结束位置
     end_va = end_va.min(VirtAddr::from(end));
     if end_va.page_offset() == 0 {
-      v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);//这里不太懂？？
+      v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);//获取物理页面一整页的内容
     } else {
       v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()])
     }
     start = end_va.into();
   }
   v
+}
+
+///构造字符串，直到发现一个 \0 为止
+pub fn translated_str(token: usize, ptr: *const u8) -> String {
+  let page_table = PageTable::from_token(token);
+  let mut string = String::new();
+  let mut va = ptr as usize;
+  loop {
+    let ch: u8 = *(page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut());
+    if ch == 0 {
+      break;
+    } else {
+      string.push(ch as char);
+      va += 1;
+    }
+  }
+  string
 }

@@ -45,6 +45,12 @@ _num_app:
         writeln!(f, r#"    .quad app_{}_start"#, i)?;
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
+    writeln!(f, r#"
+    .global _app_names
+    _app_names:"#)?;
+    for app in apps.iter() {
+        writeln!(f, r#"    .string "{}""#,app)?;
+    }
     //再次循环遍历 apps 向量，这次是为了将每个应用程序的elf文件嵌入到汇编文件中。
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);

@@ -11,36 +11,16 @@ mod processor;
 mod task;
 
 
-use crate::loader::{get_app_data, get_num_app};
-use crate::sbi::shutdown;
-use crate::sync::UPSafeCell;
-use crate::trap::TrapContext;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use lazy_static::*;
-use switch::__switch;
+use crate::sbi::shutdown;
 use task::{TaskControlBlock, TaskStatus};
 use crate::loader::get_app_data_by_name;
 pub use manager::add_task;
-pub use processor::{take_current_task, current_task, schedule};
+pub use processor::{take_current_task, current_user_token,current_task, schedule, current_trap_cx, run_tasks};
 
 pub use context::TaskContext;
 
-///定义任务管理器结构体
-pub struct TaskManager {
-  ///任务的数量
-  num_app: usize,
-  ///用inner value
-  inner: UPSafeCell<TaskManagerInner>, 
-}
-
-///Inner of Task Manager
-struct TaskManagerInner {
-  ///任务列表
-  tasks: Vec<TaskControlBlock>,
-  ///正在运行的任务的id
-  current_task: usize,
-}
 
 lazy_static!{
   ///初始进程的进程控制块
@@ -53,85 +33,6 @@ pub fn add_initproc() {
   add_task(INITPROC.clone());
 }
 
-
-
-impl TaskManager {
-  ///改变当前运行的任务状态为Ready状态
-  fn mark_current_suspended(&self) {
-    let mut inner = self.inner.exclusive_access();
-    let current = inner.current_task;
-    inner.tasks[current].task_status = TaskStatus::Ready;
-  }
-
-  ///改变当前运行的任务状态为Exited
-  fn mark_current_exited(&self) {
-    let mut inner = self.inner.exclusive_access();
-    let current = inner.current_task;
-    inner.tasks[current].task_status = TaskStatus::Exited;
-  }
-
-  ///执行下一个任务
-  fn run_next_task(&self) {
-    //找到了下一个Ready的任务
-    if let Some(next) = self.find_next_task() {
-      let mut inner = self.inner.exclusive_access();
-      let current = inner.current_task;
-      inner.tasks[next].task_status = TaskStatus::Running;
-      inner.current_task = next;
-      let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
-      let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
-      drop(inner);
-      unsafe {
-        __switch(
-          current_task_cx_ptr,
-          next_task_cx_ptr
-        );
-        //回到用户态
-      }
-    } else { //没有找到Ready的任务
-      println!("All applications completed!");
-      shutdown(false);
-    }
-  }
-
-  ///找到下一个准备好的Task的任务号
-  fn find_next_task(&self) -> Option<usize> {
-    let inner = self.inner.exclusive_access();
-    let current = inner.current_task;
-    (current + 1..current + self.num_app + 1).map(|id| id % self.num_app).find(|id|{
-      inner.tasks[*id].task_status == TaskStatus::Ready})
-  }
-
-  ///运行第一个任务
-  fn run_first_task(&self) -> ! {
-    let mut inner = self.inner.exclusive_access();
-    let task0 = &mut inner.tasks[0];
-    task0.task_status = TaskStatus::Running;
-    let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
-    drop(inner);
-    //在启动栈上保存了一些之后不会用到的数据
-    let mut _unused = TaskContext::zero_init();
-    unsafe {
-      __switch(
-        &mut _unused as *mut _,
-        next_task_cx_ptr,
-      );
-    }
-    panic!("unreachable in run_first_task!");
-  }
-  ///获取当前任务的token
-  fn get_current_token(&self) -> usize {
-    let inner = self.inner.exclusive_access();
-    let current = inner.current_task;
-    inner.tasks[current].get_user_token()
-  }
-  ///获取当前任务的Trapcontext
-  fn get_current_trap_cx(&self) -> &'static mut TrapContext {
-    let inner = self.inner.exclusive_access();
-    let current = inner.current_task;
-    inner.tasks[current].get_trap_cx()
-  }
-}
 
 ///暂停当前任务并运行下一个任务
 pub fn suspend_current_and_run_next() {
@@ -147,10 +48,24 @@ pub fn suspend_current_and_run_next() {
   schedule(task_cx_ptr);
 }
 
+///空闲进程的pid
+pub const IDLE_PID: usize = 0;
+
 ///终止当前任务并运行下一个任务
 pub fn exit_current_and_run_next(exit_code: i32) {
   //从处理器监控 PROCESSOR取出当前任务
   let task = take_current_task().unwrap();
+  let pid = task.getpid();
+  //空闲进程退出是一种特殊情况，通常意味着系统关机或出现异常
+  if pid == IDLE_PID {
+    println!("[kernel] Idle process exit with exit_code {} ...", exit_code);
+    if exit_code != 0 {
+      shutdown(true); //非正常退出
+    } else {
+      shutdown(false); //正常退出
+    }
+  }
+
   //获取可变部分
   let mut inner = task.inner_exclusive_access();
   //转换当前进程为僵尸进程
@@ -175,29 +90,4 @@ pub fn exit_current_and_run_next(exit_code: i32) {
   let mut _unused = TaskContext::zero_init();
   //触发调度及任务切换
   schedule(&mut _unused as *mut _);
-}
-
-///运行第一个任务
-pub fn run_first_task() {
-  TASK_MANAGER.run_first_task();
-}
-
-fn run_next_task() {
-  TASK_MANAGER.run_next_task();
-}
-
-fn mark_current_suspended() {
-  TASK_MANAGER.mark_current_suspended();
-}
-
-fn mark_current_exited() {
-  TASK_MANAGER.mark_current_exited();
-}
-
-pub fn current_user_token() -> usize {
-  TASK_MANAGER.get_current_token()
-}
-
-pub fn current_trap_cx() -> &'static mut TrapContext {
-  TASK_MANAGER.get_current_trap_cx()
 }

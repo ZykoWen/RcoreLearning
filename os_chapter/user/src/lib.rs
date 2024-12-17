@@ -8,6 +8,8 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+use syscall::*;
+
 use buddy_system_allocator::LockedHeap;
 
 const USER_HEAP_SIZE: usize = 16384;
@@ -24,13 +26,12 @@ pub fn handler_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"] //将 _start 这段代码编译后的汇编代码中放在一个名为 .text.entry 的代码段
-pub extern "C" fn _start() ->! {
+pub extern "C" fn _start() -> ! {
   unsafe {
     HEAP.lock()
         .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
   }
   exit(main());
-  panic!("unreachable after sys_exit!")
 }
 //在最后链接的时候，虽然在 lib.rs 和 bin 目录下的某个应用程序都有 main 符号，但由于 lib.rs 中的 main 符号是弱链接，链接器会使用 bin 目录下的应用主逻辑作为 main 。
 #[linkage = "weak"]
@@ -38,12 +39,11 @@ pub extern "C" fn _start() ->! {
 fn main() -> i32 {
   panic!("Cannot find main!");
 }
-use syscall::*;
 
 pub fn write(fd: usize, buf: &[u8]) -> isize{
   sys_write(fd,buf)
 }
-pub fn exit(exit_code: i32) -> isize{
+pub fn exit(exit_code: i32) -> ! {
   sys_exit(exit_code)
 }
 //因为yield是rust的关键字--所以接口名不能为yield
@@ -70,7 +70,9 @@ pub fn exec(path: &str) -> isize {
 pub fn wait(exit_code: &mut i32) -> isize {
   loop {
     match sys_waitpid(-1, exit_code as *mut _) {
-      -2 => {yield_();}
+      -2 => {
+        yield_();
+      }
       exit_pid => return exit_pid,
     }
   }

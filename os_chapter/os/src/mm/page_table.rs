@@ -211,3 +211,13 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
   }
   string
 }
+
+///通过页表转换虚拟地址（VA）为物理地址（PA），并返回一个可变的引用
+pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
+  let page_table = PageTable::from_token(token);
+  let va = ptr as usize;
+  page_table
+    .translate_va(VirtAddr::from(va))
+    .unwrap()
+    .get_mut()
+}

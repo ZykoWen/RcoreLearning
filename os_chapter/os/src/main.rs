@@ -39,10 +39,14 @@ pub fn rust_main() -> !{
     mm::init();
     println!("[kernel]back to world!");
     mm::remap_test();
+    //将初始进程添加到任务控制器
+    task::add_initproc();
+    println!("after initproc");
     trap::init();
     trap::enable_timer_interrupt();//避免S特权级时钟中断被屏蔽
     timer::set_next_trigger();//设置下一个中断
-    task::run_first_task();
+    loader::list_apps();//打印所有应用的名字
+    task::run_tasks(); //开始执行
     panic!("Unreachable in rust main!");
 }
 

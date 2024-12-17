@@ -58,7 +58,6 @@ pub fn trap_handler() -> ! {
     }
     Trap::Exception(Exception::IllegalInstruction) => {
       println!("[kernel] IllegalInstruction in application, kernel killed it.");
-      panic!("[kernel] Cannot continue!");
       exit_current_and_run_next(-3);
     }
     Trap::Interrupt(Interrupt::SupervisorTimer) => { //时钟中断处理

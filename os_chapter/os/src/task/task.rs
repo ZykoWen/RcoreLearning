@@ -2,7 +2,7 @@
 use core::cell::RefMut;
 
 use super::{pid::{pid_alloc, KernelStack, PidHandle}, TaskContext};
-use crate::{config::{kernel_stack_position, TRAP_CONTEXT}, mm::{MapPermission, MemorySet, PhysPageNum,VirtAddr, KERNEL_SPACE}, trap::{trap_handler, TrapContext}};
+use crate::{config::TRAP_CONTEXT, mm::{MemorySet, PhysPageNum,VirtAddr, KERNEL_SPACE}, trap::{trap_handler, TrapContext}};
 use crate::sync::UPSafeCell;
 use alloc::vec::Vec;
 use alloc::sync::{Arc, Weak};
@@ -118,7 +118,8 @@ impl TaskControlBlock {
     let task_control_block = Self {
       pid: pid_handle,
       kernel_stack,
-      inner: unsafe { UPSafeCell::new(TaskControlBlockInner{
+      inner: unsafe { 
+        UPSafeCell::new(TaskControlBlockInner{
         trap_cx_ppn,
         base_size: user_sp,
         task_cx: TaskContext::goto_trap_return(kernel_stack_top),

@@ -3,10 +3,12 @@
 #![feature(alloc_error_handler)]
 
 
+
 #[macro_use]  //别忘了这个标志
 pub mod console;
 mod lang_items;
 mod syscall;
+use bitflags::*;
 
 use syscall::*;
 
@@ -96,4 +98,28 @@ pub fn sleep(period_ms: usize) {
   while sys_get_time() < start + period_ms as isize {
     sys_yield();
   }
+}
+bitflags! {
+  ///文件标志
+  pub struct OpenFlags: u32 {
+    ///只读模式
+    const RONLY = 0;
+    ///只写模式
+    const WRONLY = 1 << 0;
+    ///可读可写
+    const RDWR = 1 << 1;
+    ///找不到该文件时，允许创建该文件
+    const CREATE = 1 << 9;
+    ///打开文件时，清空文件内容
+    const TRUNC = 1 << 10;
+  }
+}
+///打开文件
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+  sys_open(path, flags.bits)
+}
+
+///关闭文件标识符为fd的文件
+pub fn close(fd: usize) -> isize {
+  sys_close(fd)
 }

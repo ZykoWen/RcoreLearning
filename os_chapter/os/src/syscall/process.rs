@@ -37,6 +37,7 @@ pub fn sys_fork() -> isize {
 ///exec函数参数：要执行的应用名字符串在当前应用地址空间中的起始地址
 pub fn sys_exec(path: *const u8) -> isize {
   let token = current_user_token();
+  //获取应用名字字符串
   let path = translated_str(token, path);
   if let Some(data) = get_app_data_by_name(path.as_str()) {
     let task = current_task().unwrap();

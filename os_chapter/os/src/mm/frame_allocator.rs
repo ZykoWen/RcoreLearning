@@ -58,6 +58,7 @@ impl FrameAllocator for StackFrameAllocator {
 }
 
 impl StackFrameAllocator {
+  ///初始化物理页站管理器
   pub fn init(&mut self, l:PhysPageNum, r:PhysPageNum) {
     self.current = l.0;
     self.end = r.0;

@@ -1,0 +1,244 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/syscall.rs`."><title>syscall.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-dbdb5eec.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="user_lib" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (d49be02cf 2024-12-02)" data-channel="nightly" data-search-js="search-92e6798f.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">user_lib/</div>syscall.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<a href="#1" id="1">1</a>
+<a href="#2" id="2">2</a>
+<a href="#3" id="3">3</a>
+<a href="#4" id="4">4</a>
+<a href="#5" id="5">5</a>
+<a href="#6" id="6">6</a>
+<a href="#7" id="7">7</a>
+<a href="#8" id="8">8</a>
+<a href="#9" id="9">9</a>
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+<a href="#12" id="12">12</a>
+<a href="#13" id="13">13</a>
+<a href="#14" id="14">14</a>
+<a href="#15" id="15">15</a>
+<a href="#16" id="16">16</a>
+<a href="#17" id="17">17</a>
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
+<a href="#47" id="47">47</a>
+<a href="#48" id="48">48</a>
+<a href="#49" id="49">49</a>
+<a href="#50" id="50">50</a>
+<a href="#51" id="51">51</a>
+<a href="#52" id="52">52</a>
+<a href="#53" id="53">53</a>
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a></pre></div><pre class="rust"><code><span class="comment">//！实现之间的应用程序和批处理系统系统调用
+</span><span class="kw">use </span>core::arch::asm;
+
+<span class="doccomment">///定义通用系统调用函数
+</span><span class="kw">fn </span>syscall(id:usize,args:[usize;<span class="number">3</span>])-&gt;isize{
+  <span class="kw">let </span><span class="kw-2">mut </span>ret: isize;<span class="comment">//保存系统调用返回值
+  //asm! 宏可以获取上下文中的变量信息并允许嵌入的汇编代码对这些变量进行操作
+  </span><span class="kw">unsafe</span>{
+    <span class="macro">asm!</span>(
+      <span class="string">"ecall"</span>,<span class="comment">//触发系统调用
+      //编译器自动插入相关指令并保证在 ecall 指令执行之前，以下寄存器被赋值
+      </span>inlateout(<span class="string">"x10"</span>) args[<span class="number">0</span>] =&gt; ret, <span class="comment">//a0 寄存器，它同时作为输入和输出
+      </span><span class="kw">in</span>(<span class="string">"x11"</span>) args[<span class="number">1</span>],
+      <span class="kw">in</span>(<span class="string">"x12"</span>) args[<span class="number">2</span>],
+      <span class="kw">in</span>(<span class="string">"x17"</span>) id <span class="comment">//用来传递 syscall ID，这是因为所有的 syscall 都是通过 ecall 指令触发的，除了各输入参数之外我们还额外需要一个寄存器来保存要请求哪个系统调用
+    </span>);
+  }
+  ret
+}
+
+<span class="comment">//系统调用号，用于标识写操作的系统调用
+</span><span class="kw">const </span>SYSCALL_READ: usize = <span class="number">63</span>;
+<span class="kw">const </span>SYSCALL_WRITE: usize = <span class="number">64</span>;
+<span class="kw">const </span>SYSCALL_EXIT: usize = <span class="number">93</span>;
+<span class="kw">const </span>SYSCALL_YIELD: usize = <span class="number">124</span>;
+<span class="kw">const </span>SYSCALL_GET_TIME: usize = <span class="number">169</span>;
+<span class="kw">const </span>SYSCALL_GETPID: usize = <span class="number">172</span>;
+<span class="kw">const </span>SYSCALL_FORK: usize = <span class="number">220</span>;
+<span class="kw">const </span>SYSCALL_EXEC: usize = <span class="number">221</span>;
+<span class="kw">const </span>SYSCALL_WAITPID: usize = <span class="number">260</span>;
+<span class="kw">const </span>SYSCALL_OPEN: usize = <span class="number">56</span>;
+<span class="kw">const </span>SYSCALL_CLOSE: usize = <span class="number">57</span>;
+
+<span class="doccomment">/// 功能：将内存中缓冲区中的数据写入文件。
+/// 参数：`fd` 表示待写入文件的文件描述符；
+///      `buf` 表示内存中缓冲区的起始地址；
+///      `len` 表示内存中缓冲区的长度。
+/// 返回值：返回成功写入的长度。
+/// syscall ID：64
+</span><span class="kw">pub fn </span>sys_write(fd: usize,buffer: <span class="kw-2">&amp;</span>[u8]) -&gt; isize{
+  syscall(SYSCALL_WRITE,[fd, buffer.as_ptr() <span class="kw">as </span>usize, buffer.len()])
+}
+
+<span class="doccomment">/// 功能：退出应用程序并将返回值告知批处理系统。
+/// 参数：`exit_code` 表示应用程序的返回值。
+/// 返回值：该系统调用不应该返回。
+/// syscall ID：93
+</span><span class="kw">pub fn </span>sys_exit(xstate: i32) -&gt; ! {
+  syscall(SYSCALL_EXIT,[xstate <span class="kw">as </span>usize,<span class="number">0</span>,<span class="number">0</span>]);
+   <span class="macro">panic!</span>(<span class="string">"sys_exit never returns!"</span>);
+}
+
+<span class="doccomment">/// 功能：应用主动交出 CPU 所有权并切换到其他应用。
+/// 返回值：总是返回 0。
+/// syscall ID：124
+</span><span class="kw">pub fn </span>sys_yield() -&gt; isize {
+  syscall(SYSCALL_YIELD, [<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：获取当前的时间，保存在 TimeVal 结构体 ts 中，_tz 在我们的实现中忽略
+/// 返回值：返回是否执行成功，成功则返回 0
+/// syscall ID：169
+</span><span class="kw">pub fn </span>sys_get_time() -&gt; isize {
+  syscall(SYSCALL_GET_TIME, [<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：当前进程 fork 出来一个子进程。
+/// 返回值：对于子进程返回 0，对于当前进程则返回子进程的 PID 。
+/// syscall ID：220
+</span><span class="kw">pub fn </span>sys_fork() -&gt; isize {
+  syscall(SYSCALL_FORK, [<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：将当前进程的地址空间清空并加载一个特定的可执行文件，返回用户态后开始它的执行。
+/// 参数：path 给出了要加载的可执行文件的名字；
+/// 返回值：如果出错的话（如找不到名字相符的可执行文件）则返回 -1，否则不应该返回。
+/// syscall ID：221
+</span><span class="kw">pub fn </span>sys_exec(path: <span class="kw-2">&amp;</span>str) -&gt; isize {
+    syscall(SYSCALL_EXEC, [path.as_ptr() <span class="kw">as </span>usize, <span class="number">0</span>, <span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：当前进程等待一个子进程变为僵尸进程，回收其全部资源并收集其返回值。
+/// 参数：pid 表示要等待的子进程的进程 ID，如果为 -1 的话表示等待任意一个子进程；
+/// exit_code 表示保存子进程返回值的地址，如果这个地址为 0 的话表示不必保存。
+/// 返回值：如果要等待的子进程不存在则返回 -1；否则如果要等待的子进程均未结束则返回 -2；
+/// 否则返回结束的子进程的进程 ID。
+/// syscall ID：260
+</span><span class="kw">pub fn </span>sys_waitpid(pid: isize, exit_code: <span class="kw-2">*mut </span>i32) -&gt; isize {
+    syscall(SYSCALL_WAITPID, [pid <span class="kw">as </span>usize, exit_code <span class="kw">as </span>usize, <span class="number">0</span>])
+}
+
+<span class="doccomment">///获取进程的PID
+</span><span class="kw">pub fn </span>sys_getpid() -&gt; isize {
+    syscall(SYSCALL_GETPID, [<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：从文件中读取一段内容到缓冲区。
+/// 参数：fd 是待读取文件的文件描述符，切片 buffer 则给出缓冲区。
+/// 返回值：如果出现了错误则返回 -1，否则返回实际读到的字节数。
+/// syscall ID：63
+</span><span class="kw">pub fn </span>sys_read(fd: usize, buffer: <span class="kw-2">&amp;mut </span>[u8]) -&gt; isize {
+  syscall(
+    SYSCALL_READ,
+    [fd, buffer.as_mut_ptr() <span class="kw">as </span>usize, buffer.len()]
+  )
+}
+
+<span class="doccomment">/// 功能：打开一个常规文件，并返回可以访问它的文件描述符。
+/// 参数：path 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 / 下），
+/// flags 描述打开文件的标志，具体含义下面给出。
+/// 返回值：如果出现了错误则返回 -1，否则返回打开常规文件的文件描述符。可能的错误原因是：文件不存在。
+/// syscall ID：56
+</span><span class="kw">pub fn </span>sys_open(path: <span class="kw-2">&amp;</span>str, flags: u32) -&gt; isize {
+  syscall(SYSCALL_OPEN, [path.as_ptr() <span class="kw">as </span>usize, flags <span class="kw">as </span>usize, <span class="number">0</span>])
+}
+
+<span class="doccomment">/// 功能：当前进程关闭一个文件。
+/// 参数：fd 表示要关闭的文件的文件描述符。
+/// 返回值：如果成功关闭则返回 0 ，否则返回 -1 。可能的出错原因：传入的文件描述符并不对应一个打开的文件。
+</span><span class="kw">pub fn </span>sys_close(fd: usize) -&gt; isize {
+  syscall(SYSCALL_CLOSE, [fd, <span class="number">0</span>, <span class="number">0</span>])
+}</code></pre></div></section></main></body></html>

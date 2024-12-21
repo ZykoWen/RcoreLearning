@@ -1,0 +1,1 @@
+searchState.loadedDescShard("fantastic_text", 0, "使用 ANSI …\n用于生成带有颜色的文本")
